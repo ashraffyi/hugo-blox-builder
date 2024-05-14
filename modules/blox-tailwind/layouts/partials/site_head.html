@@ -69,6 +69,16 @@
     <link href="{{ $styles.RelPermalink }}" rel="stylesheet" />
   {{ end }}
 
+  {{/* Load community blox styles */}}
+  {{ $hb_community_styles := resources.Match "dist/community/blox/**.css" }}
+  {{ with $hb_community_styles }}
+    {{ $hb_community_styles = $hb_community_styles | resources.Concat "css/community-hugo-blox.css" }}
+    {{- if hugo.IsProduction -}}
+      {{- $hb_community_styles = $hb_community_styles | minify | fingerprint "sha256" -}}
+    {{- end -}}
+    <link href="{{ $hb_community_styles.RelPermalink }}" rel="stylesheet" />
+  {{ end }}
+
   {{ if fileExists "assets/css/custom.css" }}
     {{ $styles := resources.Get "css/custom.css" | minify | fingerprint "sha256" }}
     <link href="{{ $styles.RelPermalink }}" rel="stylesheet" />
@@ -124,7 +134,8 @@
   </script>
 
   {{/* Analytics & Verification */}}
-  {{ partial "blox-analytics/index" . }}
+  {{/* !CACHED! All analytics and verification code is at site level */}}
+  {{ partialCached "blox-analytics/index" . }}
 
   {{/* RSS Feed */}}
   {{ with .OutputFormats.Get "RSS" }}
@@ -153,7 +164,8 @@
   {{ else if $sharing_image }}
     {{ $og_image = $sharing_image.Permalink }}
   {{ else if $has_logo }}
-    {{ $og_image = (partial "functions/get_logo" (dict "constraint" "fit" "size" 300)).Permalink }}
+    {{/* !CACHED! Can safely cache this site logo variant */}}
+    {{ $og_image = (partialCached "functions/get_logo" (dict "constraint" "fit" "size" 300)).Permalink }}
     {{ $twitter_card = "summary" }}
   {{ else }}
     {{ $og_image = (partial "functions/get_site_icon" 512).Permalink }}
@@ -204,7 +216,15 @@
 
   {{/* Load font theme */}}
   {{ $font_family := "Inter var" }}
-  {{ $font_file := "Inter.var.woff2" }}
+  {{ $font_file := "" }}
+  {{ $font_type := "" }}
+  {{ if eq site.Params.appearance.font "serif" }}
+    {{ $font_file = "RobotoSlab-VariableFont_wght.ttf" }}
+    {{ $font_type = "truetype" }}
+  {{else}}
+    {{ $font_file = "Inter.var.woff2" }}
+    {{ $font_type = "woff2" }}
+  {{end}}
   {{ $font := resources.Get (printf "dist/font/%s" $font_file) }}
   <style>
     @font-face {
@@ -212,7 +232,7 @@
       font-style: normal;
       font-weight: 100 900;
       font-display: swap;
-      src: url({{ $font.RelPermalink }}) format("woff2");
+      src: url({{ $font.RelPermalink }}) format({{$font_type}});
     }
   </style>
 
@@ -237,6 +257,7 @@
   {{ end }}
 
   {{/* Init prior to auto-chunking/bundling scripts due to Hugo concurrency issues */}}
+  {{/* !CACHED! Initialized once at site level and then cached for each page */}}
   {{- partialCached "init.html" . -}}
 
   {{/* Load Third-Party Libraries */}}
